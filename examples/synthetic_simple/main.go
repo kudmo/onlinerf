@@ -9,32 +9,45 @@ import (
 	"github.com/kudmo/onlinerf/onlinerf/features"
 )
 
-// Простой пример с большим количеством синтетических данных.
-// Есть две числовые метрики (cpu, mem) и две категориальные (env, role).
-// Зависимость: объект "плохой" (label=true), если cpu+mem > 1.2 и env == "prod".
+// Синтетический пример:
+// label = (cpu + mem > 1.2) AND (env == "prod")
 func main() {
 	rand.Seed(42)
 
+	// Фиксированная схема признаков:
+	// 0: cpu
+	// 1: mem
+	// 2: env_dev
+	// 3: env_staging
+	// 4: env_prod
+	// 5: role_api
+	// 6: role_batch
+	const numFeatures = 7
+
 	cfg := onlinerf.PredictorConfig{
 		NumTrees:            10,
-		MaxDepth:            5,
-		MaxNodesPerTree:     200,
-		HoeffdingSplitDelta: 0.05,
-		MinSamplesPerLeaf:   2,
+		NumFeatures:         numFeatures,
+		MaxDepth:            20,
+		MaxNodesPerTree:     300,
+		HoeffdingSplitDelta: 0.1,
+		MinSamplesPerLeaf:   5,
 		UseDriftDetection:   false,
 	}
+
 	model := onlinerf.NewPredictor(cfg)
 
 	type sample struct {
-		numeric     map[string]float64
-		categorical map[string]string
-		label       bool
+		cpu   float64
+		mem   float64
+		env   string
+		role  string
+		label bool
 	}
 
-	// Генерируем датасет: 1000 объектов, 70% train / 30% test.
-	var all []sample
 	envs := []string{"dev", "staging", "prod"}
 	roles := []string{"api", "batch"}
+
+	var all []sample
 
 	for i := 0; i < 1000; i++ {
 		cpu := rand.Float64() // [0,1)
@@ -42,44 +55,65 @@ func main() {
 		env := envs[rand.Intn(len(envs))]
 		role := roles[rand.Intn(len(roles))]
 
-		// Простое правило для генерации лейбла.
-		label := cpu+mem > 1.2 && env == "prod"
+		label := cpu+mem > 0.7 && env == "prod" || role == "api"
 
 		all = append(all, sample{
-			numeric: map[string]float64{
-				"cpu": cpu,
-				"mem": mem,
-			},
-			categorical: map[string]string{
-				"env":  env,
-				"role": role,
-			},
+			cpu:   cpu,
+			mem:   mem,
+			env:   env,
+			role:  role,
 			label: label,
 		})
 	}
 
-	// Перемешиваем и делим на train/test.
+	// Shuffle + split
 	rand.Shuffle(len(all), func(i, j int) { all[i], all[j] = all[j], all[i] })
+
 	trainSize := int(0.7 * float64(len(all)))
 	train := all[:trainSize]
 	test := all[trainSize:]
 
-	// Обучение на train (батч).
-	for _, s := range train {
-		fv := features.EmbedFeatures(s.numeric, s.categorical)
-		model.Update(fv, s.label)
+	// ---- Helper: fixed embedding ----
+	embed := func(s sample) features.FeatureVector {
+
+		vec := make([]float64, numFeatures)
+
+		vec[0] = s.cpu
+		vec[1] = s.mem
+
+		// env one-hot
+		switch s.env {
+		case "dev":
+			vec[2] = 1
+		case "staging":
+			vec[3] = 1
+		case "prod":
+			vec[4] = 1
+		}
+
+		// role one-hot
+		switch s.role {
+		case "api":
+			vec[5] = 1
+		case "batch":
+			vec[6] = 1
+		}
+
+		return vec
 	}
 
-	// Оценка качества на test: считаем accuracy и среднюю вероятность
-	// для положительного и отрицательного класса.
+	// ---- Training ----
+	for _, s := range train {
+		model.Update(embed(s), s.label)
+	}
+
+	// ---- Evaluation ----
 	var tp, fp, tn, fn int
 	var sumPosProb, sumNegProb float64
 	var nPos, nNeg int
 
 	for _, s := range test {
-		fv := features.EmbedFeatures(s.numeric, s.categorical)
-		p := model.Predict(fv)
-
+		p := model.Predict(embed(s))
 		if s.label {
 			sumPosProb += p
 			nPos++
@@ -89,6 +123,7 @@ func main() {
 		}
 
 		pred := p >= 0.5
+
 		switch {
 		case pred && s.label:
 			tp++
@@ -108,6 +143,7 @@ func main() {
 	if nPos > 0 {
 		avgPosProb = sumPosProb / float64(nPos)
 	}
+
 	avgNegProb := 0.0
 	if nNeg > 0 {
 		avgNegProb = sumNegProb / float64(nNeg)
@@ -119,4 +155,3 @@ func main() {
 	fmt.Printf("Avg prob for positive class (y=1): %.3f over %d samples\n", avgPosProb, nPos)
 	fmt.Printf("Avg prob for negative class (y=0): %.3f over %d samples\n", avgNegProb, nNeg)
 }
-
