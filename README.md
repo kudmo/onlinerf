@@ -49,9 +49,11 @@ pred.Update(fv, true)
 go run ./examples/basic
 ```
 
-### Потоковое обучение
+### Потоковое, батч‑ и синтетическое обучение
 
-Пример online‑обучения на стриме событий: `examples/online_training/main.go`.
+- Online‑пример: `examples/online_training/main.go` — обучение по стриму событий с выводом before/after.
+- Batch‑пример: `examples/batch_training/main.go` — обучение на батче и расчёт метрик (accuracy, precision, recall, F1, log loss).
+- Простой синтетический пример: `examples/synthetic_simple/main.go` — большая выборка с простой зависимостью (2 числовые + 2 категориальные фичи) и оценкой accuracy/средних вероятностей.
 
 ---
 
@@ -100,4 +102,5 @@ Run example:
 ```bash
 go run ./examples/basic
 ```
+
 
