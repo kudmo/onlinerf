@@ -2,7 +2,8 @@ package forest
 
 import "math"
 
-// DriftDetector отслеживает поток бинарных меток и сигнализирует о дрейфе
+// DriftDetector tracks a stream of binary labels and signals when concept
+// drift is detected according to an ADWIN-like statistical test.
 type DriftDetector struct {
 	window     []float64
 	width      int
@@ -12,7 +13,8 @@ type DriftDetector struct {
 	minWindow  int
 }
 
-// NewADWIN создаёт новый детектор дрейфа
+// NewADWIN creates a new drift detector with the given significance level alpha.
+// Smaller alpha makes the detector more conservative.
 func NewADWIN(alpha float64) *DriftDetector {
 	return &DriftDetector{
 		window:     make([]float64, 0, 100),
@@ -24,8 +26,8 @@ func NewADWIN(alpha float64) *DriftDetector {
 	}
 }
 
-// Add добавляет новый бинарный пример (0.0 или 1.0) в детектор.
-// Возвращает true, если обнаружен дрейф.
+// Add feeds a new binary observation into the detector.
+// It returns true if drift is detected and the internal window was reset.
 func (d *DriftDetector) Add(value bool) bool {
 	var x float64
 	if value {
@@ -34,18 +36,18 @@ func (d *DriftDetector) Add(value bool) bool {
 		x = 0.0
 	}
 
-	// добавляем в окно
+	// Append to the current sliding window.
 	d.window = append(d.window, x)
 	d.width++
 	d.sum += x
 	d.sumSquares += x * x
 
-	// если слишком мало данных — не проверяем
+	// If there is not enough data yet, never signal drift.
 	if d.width < d.minWindow {
 		return false
 	}
 
-	// проверка дрейфа
+	// Check for drift.
 	return d.detect()
 }
 
@@ -53,15 +55,16 @@ func (d *DriftDetector) detect() bool {
 	n := float64(d.width)
 	mean := d.sum / n
 	variance := d.sumSquares/n - mean*mean
-	// защита от отрицательной дисперсии
+	// Guard against tiny or negative variance due to numerical noise.
 	if variance < 1e-10 {
 		variance = 1e-10
 	}
 
-	// вычисляем ε по формуле Hoeffding для биномиального среднего
+	// Compute epsilon using a Hoeffding-style bound for the sample mean.
 	eps := math.Sqrt(2 * variance * math.Log(2.0/d.alpha) / n)
 
-	// разбиваем окно пополам и проверяем статистическое различие
+	// Split the window at different cut points and test for a significant
+	// difference between the left and right means.
 	for i := d.minWindow; i <= d.width-d.minWindow; i++ {
 		leftSum := 0.0
 		for j := 0; j < i; j++ {
@@ -76,7 +79,7 @@ func (d *DriftDetector) detect() bool {
 		meanRight := rightSum / nRight
 
 		if math.Abs(meanLeft-meanRight) > eps {
-			// дрейф обнаружен → обнуляем окно
+			// Drift detected — reset the window and report true.
 			d.reset()
 			return true
 		}

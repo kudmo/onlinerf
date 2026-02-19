@@ -6,7 +6,8 @@ import (
 )
 
 // RawFeatureVector is a generic representation of input features before
-// embedding. This can be extended to hold typed, heterogeneous data.
+// embedding. It can hold heterogeneous data types and keeps track of the
+// original feature ordering.
 type RawFeatureVector struct {
 	Numeric       []float64
 	Categorical   []string
@@ -15,31 +16,41 @@ type RawFeatureVector struct {
 }
 
 // Embedder maps raw features to a dense numeric FeatureVector that is used
-// by the forest. Implementations may apply hashing, one-hot encoding, etc.
+// by the forest. Implementations may apply hashing, one-hot encoding, or
+// other feature engineering techniques.
 type Embedder interface {
 	Embed(raw RawFeatureVector) FeatureVector
 }
 
-// EmbedderFactory allows users to plug in custom embedders based on config.
+// EmbedderFactory allows users to plug in custom embedders based on FeatureConfig.
+// This is how the onlinerf package wires user-defined embedding logic into the
+// Predictor.
 type EmbedderFactory interface {
 	NewEmbedder(cfg FeatureConfig) Embedder
 }
 
-// IdentityEmbedder is a simple implementation assuming that raw numeric
-// features are already in the desired embedded space.
+// IdentityEmbedder is a simple implementation that assumes raw numeric
+// features are already in the desired embedded space and simply copies them.
 type IdentityEmbedder struct{}
 
 func (IdentityEmbedder) Embed(raw RawFeatureVector) FeatureVector {
 	return append([]float64(nil), raw.Numeric...)
 }
 
-// EmbedFeatures is a helper used by the example to turn simple maps of
-// numeric and categorical features into a dense FeatureVector.
-// For now it:
-//   - sorts feature names to obtain a stable ordering
-//   - appends all numeric values
-//   - encodes each categorical value into a single numeric feature
-//     using a deterministic hash.
+// EmbedFeatures is a helper used by examples to turn simple maps of numeric
+// and categorical features into a dense FeatureVector.
+//
+// The current strategy is:
+//   - sort numeric feature names and append their values in that order
+//   - sort categorical feature names and encode each categorical value into
+//     a single numeric feature using a deterministic hash in [0,1).
+//
+// Example:
+//
+//	numeric := map[string]float64{"cpu": 0.7, "mem": 0.4}
+//	categorical := map[string]string{"env": "prod", "role": "api"}
+//	fv := features.EmbedFeatures(numeric, categorical)
+//	_ = fv
 func EmbedFeatures(numeric map[string]float64, categorical map[string]string) FeatureVector {
 	values := make([]float64, 0, len(numeric)+len(categorical))
 

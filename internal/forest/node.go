@@ -6,7 +6,7 @@ import (
 	"github.com/kudmo/onlinerf/api/features"
 )
 
-// Node represents a single Hoeffding tree node.
+// Node represents a single node in a Hoeffding decision tree.
 // This is a minimal skeleton; split criteria and feature statistics
 // can be extended without changing the public predictor API.
 type Node struct {
@@ -60,19 +60,20 @@ func (n *Node) ChooseChild(fv features.FeatureVector) *Node {
 
 func (n *Node) Update(fv features.FeatureVector, label bool, cfg TreeConfig) {
 	if n.IsLeaf {
-		// 1. Обновляем статистику
+		// 1. Update label statistics at this leaf.
 		n.Stats.Update(label)
 
-		// 2. Проверяем дрейф
+		// 2. Check for concept drift if a detector is attached.
 		if n.DriftDetector != nil {
 			drift := n.DriftDetector.Add(label)
 			if drift {
-				// Дрейф обнаружен — сбросить лист
+				// Drift detected — reset this leaf and its statistics.
 				n.Left = nil
 				n.Right = nil
 				n.IsLeaf = true
 				n.Stats = Stats{}
-				// Перезапускаем детектор
+
+				// Restart the detector for the new distribution.
 				if cfg.UseDriftDetection {
 					n.DriftDetector.reset()
 				}
@@ -83,7 +84,7 @@ func (n *Node) Update(fv features.FeatureVector, label bool, cfg TreeConfig) {
 			n.FeatureStats[i].Update(v, label)
 		}
 
-		// 2. Проверка условий split
+		// 3. Check if the node is eligible for splitting.
 		if n.Stats.Total() < cfg.MinSamplesPerLeaf {
 			return
 		}
@@ -96,13 +97,14 @@ func (n *Node) Update(fv features.FeatureVector, label bool, cfg TreeConfig) {
 		return
 	}
 
-	// не лист — спускаемся
+	// Non-leaf node — descend into the chosen child.
 	child := n.ChooseChild(fv)
 	child.Update(fv, label, cfg)
 }
 
 func (n *Node) trySplit(cfg TreeConfig) {
-	// TODO: decline split if MAX NODES reached (need to pass tree-level node count and increment on split)
+	// TODO: decline split if MAX NODES reached (need to pass tree-level node
+	// count and increment on split).
 
 	total := n.Stats.Total()
 	parentPos := n.Stats.Pos
