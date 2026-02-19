@@ -1,6 +1,6 @@
 package forest
 
-import "github.com/kudmo/onlinerf/onlinerf"
+import "github.com/kudmo/onlinerf/onlinerf/features"
 
 // Node represents a single Hoeffding tree node.
 // This is a minimal skeleton; split criteria and feature statistics
@@ -29,14 +29,14 @@ func NewLeaf(depth int) *Node {
 }
 
 // Predict returns the probability estimate at this node.
-func (n *Node) Predict(_ predictor.FeatureVector) float64 {
+func (n *Node) Predict(_ features.FeatureVector) float64 {
 	// For now, we simply use the empirical positive probability.
 	return n.Stats.Prob()
 }
 
 // Update updates statistics along the path and potentially triggers a split.
 // The exact Hoeffding split logic is left for future extension.
-func (n *Node) Update(fv predictor.FeatureVector, label bool, cfg TreeConfig) {
+func (n *Node) Update(fv features.FeatureVector, label bool, cfg TreeConfig) {
 	n.Stats.Update(label)
 
 	if n.IsLeaf {

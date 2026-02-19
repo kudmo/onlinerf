@@ -1,6 +1,5 @@
 package features
 
-import "github.com/kudmo/onlinerf/onlinerf"
 
 // NormalizerConfig contains configuration for online normalization of numeric features.
 type NormalizerConfig struct {
@@ -10,17 +9,17 @@ type NormalizerConfig struct {
 // Normalizer performs online normalization (e.g., mean-variance scaling).
 type Normalizer interface {
 	// Update updates internal statistics with a new sample.
-	Update(fv predictor.FeatureVector)
+	Update(fv FeatureVector)
 	// Transform applies the current normalization to the given feature vector.
-	Transform(fv predictor.FeatureVector) predictor.FeatureVector
+	Transform(fv FeatureVector) FeatureVector
 }
 
 // NoOpNormalizer leaves features unchanged.
 type NoOpNormalizer struct{}
 
-func (n *NoOpNormalizer) Update(_ predictor.FeatureVector) {}
+func (n NoOpNormalizer) Update(_ FeatureVector) {}
 
-func (n *NoOpNormalizer) Transform(fv predictor.FeatureVector) predictor.FeatureVector {
+func (n NoOpNormalizer) Transform(fv FeatureVector) FeatureVector {
 	return fv
 }
 

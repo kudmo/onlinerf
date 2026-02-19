@@ -1,4 +1,15 @@
-package onlinerf
+package features
+
+// FeatureConfig contains settings for encoding numeric and categorical features.
+// This is intentionally generic and can be extended in the future.
+type FeatureConfig struct {
+	// Example options (extend as needed):
+	// - whether to standardize numeric features
+	// - hashing dimensions for categorical features
+	// - per-feature overrides
+
+	NormalizeNumeric bool
+}
 
 // FeatureType describes the type of a single feature.
 type FeatureType int

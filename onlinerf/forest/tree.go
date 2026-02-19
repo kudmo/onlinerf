@@ -1,6 +1,6 @@
 package forest
 
-import "github.com/kudmo/onlinerf/onlinerf"
+import "github.com/kudmo/onlinerf/onlinerf/features"
 
 // TreeConfig controls a single Hoeffding tree within the forest.
 type TreeConfig struct {
@@ -28,7 +28,7 @@ func NewTree(cfg TreeConfig) *Tree {
 }
 
 // Predict returns the probability estimate of the positive class.
-func (t *Tree) Predict(fv predictor.FeatureVector) float64 {
+func (t *Tree) Predict(fv features.FeatureVector) float64 {
 	if t.Root == nil {
 		return 0.5
 	}
@@ -51,7 +51,7 @@ func (t *Tree) Predict(fv predictor.FeatureVector) float64 {
 }
 
 // Update performs an online update of the tree with a single sample.
-func (t *Tree) Update(fv predictor.FeatureVector, label bool) {
+func (t *Tree) Update(fv features.FeatureVector, label bool) {
 	if t.Root == nil {
 		t.Root = NewLeaf(0)
 	}

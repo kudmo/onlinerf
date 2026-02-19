@@ -66,7 +66,7 @@ func NewPredictor(cfg PredictorConfig) *Predictor {
 
 // Predict returns the probability of class 1 for the given already-embedded
 // feature vector.
-func (p *Predictor) Predict(fv FeatureVector) float64 {
+func (p *Predictor) Predict(fv features.FeatureVector) float64 {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -88,7 +88,7 @@ func (p *Predictor) Predict(fv FeatureVector) float64 {
 }
 
 // Update performs an online training update with a single sample.
-func (p *Predictor) Update(fv FeatureVector, label bool) {
+func (p *Predictor) Update(fv features.FeatureVector, label bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
