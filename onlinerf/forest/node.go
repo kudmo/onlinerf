@@ -1,58 +1,138 @@
 package forest
 
-import "github.com/kudmo/onlinerf/onlinerf/features"
+import (
+	"math"
+
+	"github.com/kudmo/onlinerf/onlinerf/features"
+)
 
 // Node represents a single Hoeffding tree node.
 // This is a minimal skeleton; split criteria and feature statistics
 // can be extended without changing the public predictor API.
 type Node struct {
-	Depth int
+	IsLeaf bool
+	Depth  int
 
-	// Split definition (for numeric features we use threshold; for
-	// categorical it can be equality-based, etc.).
-	FeatureIndex int
+	Stats Stats
+
+	FeatureStats map[int]*FeatureStat
+
+	SplitFeature int
 	Threshold    float64
-	IsLeaf       bool
 
 	Left  *Node
 	Right *Node
-
-	Stats ClassStats
 }
 
-// NewLeaf creates a new leaf node at the given depth.
-func NewLeaf(depth int) *Node {
+func NewLeaf(depth int, numFeatures int, bootstrap features.FeatureVector) *Node {
+	fs := make(map[int]*FeatureStat)
+
+	for i := 0; i < numFeatures; i++ {
+		fs[i] = &FeatureStat{
+			Threshold: bootstrap[i], // bootstrap median-like
+		}
+	}
+
 	return &Node{
-		Depth:  depth,
-		IsLeaf: true,
+		IsLeaf:       true,
+		Depth:        depth,
+		FeatureStats: fs,
 	}
 }
 
 // Predict returns the probability estimate at this node.
-func (n *Node) Predict(_ features.FeatureVector) float64 {
-	// For now, we simply use the empirical positive probability.
+func (n *Node) Predict(fv features.FeatureVector) float64 {
+	if !n.IsLeaf {
+		panic("Predict should only be called on leaf nodes")
+	}
 	return n.Stats.Prob()
+}
+
+func (n *Node) ChooseChild(fv features.FeatureVector) *Node {
+	if fv[n.SplitFeature] <= n.Threshold {
+		return n.Left
+	}
+	return n.Right
 }
 
 // Update updates statistics along the path and potentially triggers a split.
 // The exact Hoeffding split logic is left for future extension.
 func (n *Node) Update(fv features.FeatureVector, label bool, cfg TreeConfig) {
-	n.Stats.Update(label)
-
 	if n.IsLeaf {
-		// TODO: implement Hoeffding bound-based split decision.
+
+		// 1. Обновляем статистику
+		n.Stats.Update(label)
+
+		for i, v := range fv {
+			n.FeatureStats[i].Update(v, label)
+		}
+
+		// 2. Проверка условий split
+		if n.Stats.Total() < cfg.MinSamplesPerLeaf {
+			return
+		}
+
+		if n.Depth >= cfg.MaxDepth {
+			return
+		}
+
+		n.trySplit(cfg)
 		return
 	}
 
-	// Route down the tree if already split.
-	if fv.Values[n.FeatureIndex] <= n.Threshold {
-		if n.Left != nil {
-			n.Left.Update(fv, label, cfg)
-		}
-	} else {
-		if n.Right != nil {
-			n.Right.Update(fv, label, cfg)
-		}
-	}
+	// не лист — спускаемся
+	child := n.ChooseChild(fv)
+	child.Update(fv, label, cfg)
 }
 
+func (n *Node) trySplit(cfg TreeConfig) {
+	// TODO: decline split if MAX NODES reached (need to pass tree-level node count and increment on split)
+
+	total := n.Stats.Total()
+	parentPos := n.Stats.Pos
+	parentNeg := n.Stats.Neg
+
+	var bestFeature int = -1
+	var bestGain float64 = -1
+	var secondBest float64 = -1
+
+	for i, fs := range n.FeatureStats {
+		gain := fs.GiniGain(parentPos, parentNeg)
+
+		if gain > bestGain {
+			secondBest = bestGain
+			bestGain = gain
+			bestFeature = i
+		} else if gain > secondBest {
+			secondBest = gain
+		}
+	}
+
+	if bestFeature == -1 {
+		return
+	}
+
+	// Hoeffding bound
+	R := 1.0
+	epsilon := math.Sqrt(
+		(R * R * math.Log(1.0/cfg.HoeffdingSplitDelta)) /
+			(2.0 * float64(total)),
+	)
+
+	if bestGain-secondBest > epsilon {
+
+		bestFS := n.FeatureStats[bestFeature]
+
+		n.IsLeaf = false
+		n.SplitFeature = bestFeature
+		n.Threshold = bestFS.Threshold
+
+		numFeatures := len(n.FeatureStats)
+
+		n.Left = NewLeaf(n.Depth+1, numFeatures, make(features.FeatureVector, numFeatures))
+		n.Right = NewLeaf(n.Depth+1, numFeatures, make(features.FeatureVector, numFeatures))
+
+		// очищаем статистику текущего листа
+		n.FeatureStats = nil
+	}
+}

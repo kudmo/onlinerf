@@ -30,7 +30,7 @@ type EmbedderFactory interface {
 type IdentityEmbedder struct{}
 
 func (IdentityEmbedder) Embed(raw RawFeatureVector) FeatureVector {
-	return FeatureVector{Values: append([]float64(nil), raw.Numeric...)}
+	return append([]float64(nil), raw.Numeric...)
 }
 
 // EmbedFeatures is a helper used by the example to turn simple maps of
@@ -68,6 +68,5 @@ func EmbedFeatures(numeric map[string]float64, categorical map[string]string) Fe
 		values = append(values, float64(hashVal)/denom)
 	}
 
-	return FeatureVector{Values: values}
+	return values
 }
-

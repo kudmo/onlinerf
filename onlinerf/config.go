@@ -4,10 +4,10 @@ import (
 	"github.com/kudmo/onlinerf/onlinerf/features"
 )
 
-
 // PredictorConfig controls the forest model and feature pipeline.
 type PredictorConfig struct {
 	NumTrees            int
+	NumFeatures         int
 	MaxDepth            int
 	MaxNodesPerTree     int
 	HoeffdingSplitDelta float64
@@ -21,4 +21,3 @@ type PredictorConfig struct {
 	EmbedderFactory  features.EmbedderFactory
 	NormalizerConfig features.NormalizerConfig
 }
-

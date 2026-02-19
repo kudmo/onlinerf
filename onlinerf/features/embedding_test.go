@@ -19,7 +19,7 @@ func TestEmbedFeaturesNumericAndCategorical(t *testing.T) {
 	fv := EmbedFeatures(numeric, categorical)
 
 	expectedLen := len(numeric) + len(categorical)
-	if got := len(fv.Values); got != expectedLen {
+	if got := len(fv); got != expectedLen {
 		t.Fatalf("expected %d features after embedding, got %d", expectedLen, got)
 	}
 }
@@ -39,12 +39,12 @@ func TestEmbedFeaturesDeterministic(t *testing.T) {
 	fv1 := EmbedFeatures(numeric, categorical)
 	fv2 := EmbedFeatures(numeric, categorical)
 
-	if len(fv1.Values) != len(fv2.Values) {
-		t.Fatalf("embedded vectors have different lengths: %d vs %d", len(fv1.Values), len(fv2.Values))
+	if len(fv1) != len(fv2) {
+		t.Fatalf("embedded vectors have different lengths: %d vs %d", len(fv1), len(fv2))
 	}
-	for i := range fv1.Values {
-		if fv1.Values[i] != fv2.Values[i] {
-			t.Fatalf("embedded vectors differ at index %d: %v vs %v", i, fv1.Values[i], fv2.Values[i])
+	for i := range fv1 {
+		if fv1[i] != fv2[i] {
+			t.Fatalf("embedded vectors differ at index %d: %v vs %v", i, fv1[i], fv2[i])
 		}
 	}
 }
@@ -53,8 +53,8 @@ func TestEmbedFeaturesDeterministic(t *testing.T) {
 // при пустых мапах числовых и категориальных признаков.
 func TestEmbedFeaturesEmpty(t *testing.T) {
 	fv := EmbedFeatures(map[string]float64{}, map[string]string{})
-	if len(fv.Values) != 0 {
-		t.Fatalf("expected 0 features for empty inputs, got %d", len(fv.Values))
+	if len(fv) != 0 {
+		t.Fatalf("expected 0 features for empty inputs, got %d", len(fv))
 	}
 }
 
@@ -66,12 +66,11 @@ func TestEmbedFeaturesUnknownCategorical(t *testing.T) {
 
 	fv := EmbedFeatures(numeric, categorical)
 
-	if len(fv.Values) != 2 {
-		t.Fatalf("expected 2 features (1 numeric + 1 categorical), got %d", len(fv.Values))
+	if len(fv) != 2 {
+		t.Fatalf("expected 2 features (1 numeric + 1 categorical), got %d", len(fv))
 	}
 	// Проверяем лишь то, что категориальный признак закодирован в число.
-	if fv.Values[1] < 0.0 || fv.Values[1] >= 1.0 {
-		t.Fatalf("expected hashed categorical feature in [0,1), got %v", fv.Values[1])
+	if fv[1] < 0.0 || fv[1] >= 1.0 {
+		t.Fatalf("expected hashed categorical feature in [0,1), got %v", fv[1])
 	}
 }
-

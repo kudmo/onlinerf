@@ -8,9 +8,8 @@ import (
 	"github.com/kudmo/onlinerf/onlinerf/forest"
 )
 
-// Predictor is the main entry point: it owns the forest, feature pipeline
-// and aggregation logic. It is safe for concurrent use if the caller
-// serializes Update calls or uses external synchronization.
+// Predictor is the main entry point: it owns the forest,
+// feature pipeline and aggregation logic.
 type Predictor struct {
 	cfg PredictorConfig
 
@@ -19,6 +18,9 @@ type Predictor struct {
 	embedder   features.Embedder
 	normalizer features.Normalizer
 	agg        aggregator.Aggregator
+
+	numFeatures int
+	initialized bool
 
 	mu sync.RWMutex
 }
@@ -29,7 +31,7 @@ func NewPredictor(cfg PredictorConfig) *Predictor {
 		cfg: cfg,
 	}
 
-	// Initialize feature pipeline.
+	// Feature pipeline
 	if cfg.EmbedderFactory != nil {
 		p.embedder = cfg.EmbedderFactory.NewEmbedder(cfg.FeatureConfig)
 	} else {
@@ -37,31 +39,34 @@ func NewPredictor(cfg PredictorConfig) *Predictor {
 	}
 
 	if cfg.NormalizerConfig.Enable {
-		// Placeholder: plug in real online normalizer implementation.
 		p.normalizer = &features.NoOpNormalizer{}
 	} else {
 		p.normalizer = &features.NoOpNormalizer{}
 	}
 
-	// Default aggregator: mean over trees.
 	p.agg = aggregator.MeanAggregator{}
 
-	// Initialize trees.
-	treeCfg := forest.TreeConfig{
-		MaxDepth:            cfg.MaxDepth,
-		MaxNodes:            cfg.MaxNodesPerTree,
-		HoeffdingSplitDelta: cfg.HoeffdingSplitDelta,
-		MinSamplesPerLeaf:   cfg.MinSamplesPerLeaf,
-		UseDriftDetection:   cfg.UseDriftDetection,
-		DriftAlpha:          cfg.DriftAlpha,
-	}
-
-	p.trees = make([]*forest.Tree, cfg.NumTrees)
-	for i := 0; i < cfg.NumTrees; i++ {
-		p.trees[i] = forest.NewTree(treeCfg)
-	}
-
+	p.initForest(cfg.NumFeatures)
 	return p
+}
+
+func (p *Predictor) initForest(numFeatures int) {
+
+	treeCfg := forest.TreeConfig{
+		MaxDepth:            p.cfg.MaxDepth,
+		MaxNodes:            p.cfg.MaxNodesPerTree,
+		HoeffdingSplitDelta: p.cfg.HoeffdingSplitDelta,
+		MinSamplesPerLeaf:   p.cfg.MinSamplesPerLeaf,
+	}
+
+	p.trees = make([]*forest.Tree, p.cfg.NumTrees)
+
+	for i := 0; i < p.cfg.NumTrees; i++ {
+		p.trees[i] = forest.NewTree(treeCfg, numFeatures)
+	}
+
+	p.numFeatures = numFeatures
+	p.initialized = true
 }
 
 // Predict returns the probability of class 1 for the given already-embedded
@@ -107,4 +112,3 @@ func (p *Predictor) Update(fv features.FeatureVector, label bool) {
 		t.Update(embedded, label)
 	}
 }
-

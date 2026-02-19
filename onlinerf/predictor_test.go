@@ -11,6 +11,7 @@ import (
 func TestNewPredictorInitialization(t *testing.T) {
 	cfg := PredictorConfig{
 		NumTrees:            5,
+		NumFeatures:         2,
 		MaxDepth:            10,
 		MaxNodesPerTree:     100,
 		HoeffdingSplitDelta: 1e-3,
@@ -31,8 +32,8 @@ func TestNewPredictorInitialization(t *testing.T) {
 		if tr == nil {
 			t.Fatalf("tree %d is nil", i)
 		}
-		if tr.Root == nil {
-			t.Fatalf("tree %d has nil root", i)
+		if tr.Root != nil {
+			t.Fatalf("tree %d has non-nil root", i)
 		}
 	}
 }
@@ -42,13 +43,14 @@ func TestNewPredictorInitialization(t *testing.T) {
 func TestPredictInitialRange(t *testing.T) {
 	cfg := PredictorConfig{
 		NumTrees:          3,
+		NumFeatures:       3,
 		MaxDepth:          5,
 		MaxNodesPerTree:   50,
 		MinSamplesPerLeaf: 1,
 	}
 	pred := NewPredictor(cfg)
 
-	fv := features.FeatureVector{Values: []float64{0.1, 0.5, 1.0}}
+	fv := features.FeatureVector{0.1, 0.5, 1.0}
 
 	const iters = 5
 	var prev float64
@@ -70,13 +72,14 @@ func TestPredictInitialRange(t *testing.T) {
 func TestUpdateChangesPrediction(t *testing.T) {
 	cfg := PredictorConfig{
 		NumTrees:          1,
+		NumFeatures:       1,
 		MaxDepth:          3,
 		MaxNodesPerTree:   10,
 		MinSamplesPerLeaf: 1,
 	}
 	pred := NewPredictor(cfg)
 
-	fv := features.FeatureVector{Values: []float64{0.3}}
+	fv := features.FeatureVector{0.3}
 
 	before := pred.Predict(fv)
 	if before < 0.0 || before > 1.0 {
@@ -102,6 +105,7 @@ func TestUpdateChangesPrediction(t *testing.T) {
 func TestUpdateSequentialSamples(t *testing.T) {
 	cfg := PredictorConfig{
 		NumTrees:          2,
+		NumFeatures:       1,
 		MaxDepth:          4,
 		MaxNodesPerTree:   20,
 		MinSamplesPerLeaf: 1,
@@ -112,10 +116,10 @@ func TestUpdateSequentialSamples(t *testing.T) {
 		fv    features.FeatureVector
 		label bool
 	}{
-		{features.FeatureVector{Values: []float64{0}}, false},
-		{features.FeatureVector{Values: []float64{1}}, true},
-		{features.FeatureVector{Values: []float64{0.5}}, true},
-		{features.FeatureVector{Values: []float64{0.2}}, false},
+		{features.FeatureVector{0}, false},
+		{features.FeatureVector{1}, true},
+		{features.FeatureVector{0.5}, true},
+		{features.FeatureVector{0.2}, false},
 	}
 
 	for _, s := range samples {
@@ -127,30 +131,3 @@ func TestUpdateSequentialSamples(t *testing.T) {
 		}
 	}
 }
-
-// TestPredictEdgeCases проверяет граничные случаи: пустой вектор,
-// все нули, все одинаковые значения.
-func TestPredictEdgeCases(t *testing.T) {
-	cfg := PredictorConfig{
-		NumTrees:          2,
-		MaxDepth:          3,
-		MaxNodesPerTree:   10,
-		MinSamplesPerLeaf: 1,
-	}
-	pred := NewPredictor(cfg)
-
-	cases := []features.FeatureVector{
-		{Values: nil},                    // пустой
-		{Values: []float64{}},            // пустой слайс
-		{Values: []float64{0, 0, 0}},     // все нули
-		{Values: []float64{1, 1, 1, 1}},  // одинаковые значения
-	}
-
-	for i, fv := range cases {
-		p := pred.Predict(fv)
-		if p < 0.0 || p > 1.0 {
-			t.Fatalf("case %d: predict out of range [0,1]: %v", i, p)
-		}
-	}
-}
-

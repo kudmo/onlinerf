@@ -15,16 +15,25 @@ type TreeConfig struct {
 // Tree is an online Hoeffding decision tree used as a base learner
 // in the online random forest.
 type Tree struct {
-	Root   *Node
-	Config TreeConfig
+	Root        *Node
+	Config      TreeConfig
+	NumFeatures int
+	NodeCount   int
 }
 
-// NewTree creates a new tree with a single root leaf node.
-func NewTree(cfg TreeConfig) *Tree {
+func NewTree(cfg TreeConfig, numFeatures int) *Tree {
 	return &Tree{
-		Root:   NewLeaf(0),
-		Config: cfg,
+		Config:      cfg,
+		NumFeatures: numFeatures,
 	}
+}
+
+func (t *Tree) initRoot(fv features.FeatureVector) {
+	bootstrap := make(features.FeatureVector, len(fv))
+	copy(bootstrap, fv)
+
+	t.Root = NewLeaf(0, t.NumFeatures, bootstrap)
+	t.NodeCount = 1
 }
 
 // Predict returns the probability estimate of the positive class.
@@ -35,26 +44,21 @@ func (t *Tree) Predict(fv features.FeatureVector) float64 {
 
 	node := t.Root
 	for !node.IsLeaf {
-		if fv.Values[node.FeatureIndex] <= node.Threshold {
-			if node.Left == nil {
-				break
-			}
-			node = node.Left
-		} else {
-			if node.Right == nil {
-				break
-			}
-			node = node.Right
-		}
+		node = node.ChooseChild(fv)
 	}
 	return node.Predict(fv)
 }
 
 // Update performs an online update of the tree with a single sample.
 func (t *Tree) Update(fv features.FeatureVector, label bool) {
-	if t.Root == nil {
-		t.Root = NewLeaf(0)
-	}
-	t.Root.Update(fv, label, t.Config)
-}
 
+	if t.Root == nil {
+		t.initRoot(fv)
+	}
+
+	t.Root.Update(
+		features.FeatureVector(fv),
+		label,
+		t.Config,
+	)
+}
