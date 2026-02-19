@@ -1,8 +1,6 @@
 package onlinerf
 
-import (
-	"github.com/kudmo/onlinerf/onlinerf/features"
-)
+import "github.com/kudmo/onlinerf/api/features"
 
 // PredictorConfig controls the forest model and feature pipeline.
 type PredictorConfig struct {

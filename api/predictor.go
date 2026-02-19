@@ -3,9 +3,9 @@ package onlinerf
 import (
 	"sync"
 
-	"github.com/kudmo/onlinerf/onlinerf/aggregator"
-	"github.com/kudmo/onlinerf/onlinerf/features"
-	"github.com/kudmo/onlinerf/onlinerf/forest"
+	"github.com/kudmo/onlinerf/internal/aggregator"
+	"github.com/kudmo/onlinerf/internal/forest"
+	"github.com/kudmo/onlinerf/api/features"
 )
 
 // Predictor is the main entry point: it owns the forest,

@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/kudmo/onlinerf/onlinerf"
-	"github.com/kudmo/onlinerf/onlinerf/features"
+	onlinerf "github.com/kudmo/onlinerf/api"
+	"github.com/kudmo/onlinerf/api/features"
 )
 
 // Синтетический пример:

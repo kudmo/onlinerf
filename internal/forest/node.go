@@ -3,7 +3,7 @@ package forest
 import (
 	"math"
 
-	"github.com/kudmo/onlinerf/onlinerf/features"
+	"github.com/kudmo/onlinerf/api/features"
 )
 
 // Node represents a single Hoeffding tree node.

@@ -1,6 +1,6 @@
 package forest
 
-import "github.com/kudmo/onlinerf/onlinerf/features"
+import "github.com/kudmo/onlinerf/api/features"
 
 // TreeConfig controls a single Hoeffding tree within the forest.
 type TreeConfig struct {

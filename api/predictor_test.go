@@ -3,7 +3,7 @@ package onlinerf
 import (
 	"testing"
 
-	"github.com/kudmo/onlinerf/onlinerf/features"
+	"github.com/kudmo/onlinerf/api/features"
 )
 
 // TestNewPredictorInitialization проверяет, что Predictor корректно
