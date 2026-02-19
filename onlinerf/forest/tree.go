@@ -33,6 +33,9 @@ func (t *Tree) initRoot(fv features.FeatureVector) {
 	copy(bootstrap, fv)
 
 	t.Root = NewLeaf(0, t.NumFeatures, bootstrap)
+	if t.Config.UseDriftDetection {
+		t.Root.DriftDetector = NewADWIN(t.Config.DriftAlpha)
+	}
 	t.NodeCount = 1
 }
 

@@ -22,6 +22,9 @@ type Node struct {
 
 	Left  *Node
 	Right *Node
+
+	// DRIFT DETECTION
+	DriftDetector *DriftDetector
 }
 
 func NewLeaf(depth int, numFeatures int, bootstrap features.FeatureVector) *Node {
@@ -55,14 +58,27 @@ func (n *Node) ChooseChild(fv features.FeatureVector) *Node {
 	return n.Right
 }
 
-// Update updates statistics along the path and potentially triggers a split.
-// The exact Hoeffding split logic is left for future extension.
 func (n *Node) Update(fv features.FeatureVector, label bool, cfg TreeConfig) {
 	if n.IsLeaf {
-
 		// 1. Обновляем статистику
 		n.Stats.Update(label)
 
+		// 2. Проверяем дрейф
+		if n.DriftDetector != nil {
+			drift := n.DriftDetector.Add(label)
+			if drift {
+				// Дрейф обнаружен — сбросить лист
+				n.Left = nil
+				n.Right = nil
+				n.IsLeaf = true
+				n.Stats = Stats{}
+				// Перезапускаем детектор
+				if cfg.UseDriftDetection {
+					n.DriftDetector.reset()
+				}
+				return
+			}
+		}
 		for i, v := range fv {
 			n.FeatureStats[i].Update(v, label)
 		}
